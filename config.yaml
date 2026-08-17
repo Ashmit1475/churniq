@@ -1,0 +1,87 @@
+# ChurnIQ configuration
+# Everything tunable lives here. No hardcoded paths or parameters in src/.
+
+project:
+  name: ChurnIQ
+  random_state: 42
+
+paths:
+  raw_csv: data/raw/Telco-Customer-Churn.csv
+  processed_dir: data/processed
+  features_parquet: data/processed/features.parquet
+  database: data/churniq.db
+  model_artifact: models/churn_pipeline.pkl
+  metrics_json: reports/metrics.json
+  figures_dir: reports/figures
+  scored_csv: reports/scored_customers.csv
+
+database:
+  # SQLite by default so the project runs with zero setup.
+  # To use hosted Postgres (Supabase / Neon), set url below and it takes priority.
+  # Example: postgresql+psycopg2://user:pass@host:5432/dbname
+  url: null
+  customers_table: customers
+  billing_table: billing
+  predictions_table: predictions
+
+data:
+  target_column: Churn
+  id_column: customerID
+  positive_label: "Yes"
+  test_size: 0.2
+  cv_folds: 5
+
+features:
+  tenure_buckets:
+    bins: [-1, 12, 24, 48, 1000]
+    labels: ["0-12m", "13-24m", "25-48m", "48m+"]
+  service_columns:
+    - PhoneService
+    - MultipleLines
+    - OnlineSecurity
+    - OnlineBackup
+    - DeviceProtection
+    - TechSupport
+    - StreamingTV
+    - StreamingMovies
+  auto_payment_methods:
+    - "Bank transfer (automatic)"
+    - "Credit card (automatic)"
+
+models:
+  # Each entry is trained, cross-validated and compared. Best by ROC-AUC wins.
+  logistic_regression:
+    enabled: true
+    params:
+      max_iter: 2000
+      class_weight: balanced
+  random_forest:
+    enabled: true
+    params:
+      n_estimators: 400
+      min_samples_leaf: 3
+      class_weight: balanced
+      n_jobs: -1
+  gradient_boosting:
+    enabled: true
+    params:
+      max_iter: 300
+      learning_rate: 0.06
+      max_leaf_nodes: 31
+
+business:
+  # Assumptions behind threshold tuning and the retention simulator.
+  # These are ASSUMPTIONS, not measurements - challenge and re-tune them.
+  # Sanity check: expected saving per correctly-flagged churner is
+  #   avg_monthly_charge x lifetime_months x acceptance_rate
+  #   ~= 65 x 12 x 0.30 ~= $234
+  # The offer cost must sit well below that or no threshold is ever profitable.
+  retention_offer_cost: 60.0       # cost of one retention offer (discount + contact)
+  offer_acceptance_rate: 0.30      # share of contacted at-risk customers retained
+  customer_lifetime_months: 12     # horizon for revenue-at-risk calculation
+  currency_symbol: "$"             # Telco dataset charges are USD
+
+explainability:
+  enabled: true
+  max_samples: 2000                # SHAP sample cap - keeps runtime sane
+  top_reasons: 3                   # reasons surfaced per customer

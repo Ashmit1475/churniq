@@ -1,0 +1,32 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+.ipynb_checkpoints/
+.pytest_cache/
+.DS_Store
+
+# Editors and logs
+.vscode/
+.idea/
+*.log
+
+# Data and artifacts - regenerate with the pipeline, don't commit
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+*.db
+*.sqlite
+*.sqlite3
+models/*.pkl
+models/*.joblib
+reports/*.csv
+reports/metrics.json
+
+# Keep figures so the README renders on GitHub
+!reports/figures/*.png
