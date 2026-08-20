@@ -30,3 +30,8 @@ reports/metrics.json
 
 # Keep figures so the README renders on GitHub
 !reports/figures/*.png
+
+# Power BI Project - local cache and per-user settings, never commit
+**/.pbi/localSettings.json
+**/.pbi/cache.abf
+**/.pbi/unappliedChanges.json

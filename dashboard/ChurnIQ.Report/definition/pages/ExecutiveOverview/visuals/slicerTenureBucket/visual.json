@@ -1,0 +1,60 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
+  "name": "slicerTenureBucket",
+  "position": {
+    "x": 16,
+    "y": 524,
+    "z": 8000,
+    "height": 160,
+    "width": 300,
+    "tabOrder": 8000
+  },
+  "visual": {
+    "visualType": "slicer",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "predictions"
+                    }
+                  },
+                  "Property": "tenure_bucket"
+                }
+              },
+              "queryRef": "predictions.tenure_bucket",
+              "nativeQueryRef": "tenure_bucket",
+              "active": true
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Filter by tenure band'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

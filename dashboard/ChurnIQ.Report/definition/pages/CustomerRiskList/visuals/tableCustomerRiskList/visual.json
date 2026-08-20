@@ -1,0 +1,328 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
+  "name": "tableCustomerRiskList",
+  "position": {
+    "x": 15.448948491313624,
+    "y": 213.47637915269735,
+    "z": 8000,
+    "height": 470.49070405364222,
+    "width": 1248.5559280707103,
+    "tabOrder": 8000
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "predictions"
+                    }
+                  },
+                  "Property": "customerID"
+                }
+              },
+              "queryRef": "predictions.customerID",
+              "nativeQueryRef": "customerID"
+            },
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "predictions"
+                        }
+                      },
+                      "Property": "churn_probability"
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "Sum(predictions.churn_probability)",
+              "nativeQueryRef": "Sum of churn_probability",
+              "displayName": "churn_probability"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "predictions"
+                    }
+                  },
+                  "Property": "risk_band"
+                }
+              },
+              "queryRef": "predictions.risk_band",
+              "nativeQueryRef": "risk_band"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "predictions"
+                    }
+                  },
+                  "Property": "MonthlyCharges"
+                }
+              },
+              "queryRef": "predictions.MonthlyCharges",
+              "nativeQueryRef": "MonthlyCharges"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "predictions"
+                    }
+                  },
+                  "Property": "tenure"
+                }
+              },
+              "queryRef": "predictions.tenure",
+              "nativeQueryRef": "tenure"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "predictions"
+                    }
+                  },
+                  "Property": "Contract"
+                }
+              },
+              "queryRef": "predictions.Contract",
+              "nativeQueryRef": "Contract"
+            },
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "predictions"
+                        }
+                      },
+                      "Property": "revenue_at_risk"
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "Sum(predictions.revenue_at_risk)",
+              "nativeQueryRef": "Sum of revenue_at_risk",
+              "displayName": "revenue_at_risk"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "predictions"
+                    }
+                  },
+                  "Property": "top_risk_reasons"
+                }
+              },
+              "queryRef": "predictions.top_risk_reasons",
+              "nativeQueryRef": "top_risk_reasons"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Aggregation": {
+                "Expression": {
+                  "Column": {
+                    "Expression": {
+                      "SourceRef": {
+                        "Entity": "predictions"
+                      }
+                    },
+                    "Property": "churn_probability"
+                  }
+                },
+                "Function": 0
+              }
+            },
+            "direction": "Descending"
+          }
+        ]
+      }
+    },
+    "objects": {
+      "values": [
+        {
+          "properties": {},
+          "selector": {
+            "metadata": "Sum(predictions.churn_probability)"
+          }
+        },
+        {
+          "properties": {
+            "backColor": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "FillRule": {
+                      "Input": {
+                        "Aggregation": {
+                          "Expression": {
+                            "Column": {
+                              "Expression": {
+                                "SourceRef": {
+                                  "Entity": "predictions"
+                                }
+                              },
+                              "Property": "revenue_at_risk"
+                            }
+                          },
+                          "Function": 0
+                        }
+                      },
+                      "FillRule": {
+                        "linearGradient3": {
+                          "min": {
+                            "color": {
+                              "Literal": {
+                                "Value": "'#2A9D5C'"
+                              }
+                            }
+                          },
+                          "mid": {
+                            "color": {
+                              "Literal": {
+                                "Value": "'#F2C14E'"
+                              }
+                            }
+                          },
+                          "max": {
+                            "color": {
+                              "Literal": {
+                                "Value": "'#D13438'"
+                              }
+                            }
+                          },
+                          "nullColoringStrategy": {
+                            "strategy": {
+                              "Literal": {
+                                "Value": "'asZero'"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "Sum(predictions.revenue_at_risk)"
+          }
+        }
+      ],
+      "total": [
+        {
+          "properties": {
+            "totals": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Retention call list — top 500 customers by churn probability'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "topFiveHundredByChurnProbability",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "predictions"
+              }
+            },
+            "Property": "customerID"
+          }
+        },
+        "type": "VisualTopN",
+        "filter": {
+          "Version": 2,
+          "From": [
+            {
+              "Name": "p",
+              "Entity": "predictions",
+              "Type": 0
+            }
+          ],
+          "Where": [
+            {
+              "Condition": {
+                "VisualTopN": {
+                  "ItemCount": 500
+                }
+              },
+              "Target": [
+                {
+                  "Column": {
+                    "Expression": {
+                      "SourceRef": {
+                        "Source": "p"
+                      }
+                    },
+                    "Property": "customerID"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "howCreated": "User"
+      }
+    ]
+  }
+}

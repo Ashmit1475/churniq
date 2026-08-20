@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "ChurnIQ",
+    "description": "ChurnIQ churn risk dashboard."
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "8a53e1f2-5a04-4ff7-b463-7adc985cc072"
+  }
+}

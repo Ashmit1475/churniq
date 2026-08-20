@@ -1,0 +1,227 @@
+/// Customer-level churn scores produced by src/predict.py.
+/// One row per customer; this is the fact table all measures are built against.
+table predictions
+	lineageTag: ac6952ec-50e5-4b79-a5f8-4da49e96b311
+
+	column customerID
+		dataType: string
+		lineageTag: 2ca0d558-b2d7-40d7-89b7-2cec68d00055
+		summarizeBy: none
+		sourceColumn: customerID
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Predicted probability of churn, 0-1, from the winning model.
+	column churn_probability
+		dataType: double
+		lineageTag: e9f45509-07c7-4ba0-93dc-4fc6600db12e
+		summarizeBy: none
+		sourceColumn: churn_probability
+
+		annotation SummarizationSetBy = Automatic
+
+	/// High / Low, derived by comparing churn_probability against threshold_used.
+	column risk_flag
+		dataType: string
+		lineageTag: 29a97489-cacc-4bbb-b973-8dc91d5ca9c8
+		summarizeBy: none
+		sourceColumn: risk_flag
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Low / Medium / High / Critical. Sorted by risk_band_sort, not alphabetically.
+	column risk_band
+		dataType: string
+		lineageTag: dbe9d2fa-4670-47cd-8ccf-64788c8e78f4
+		summarizeBy: none
+		sourceColumn: risk_band
+		sortByColumn: risk_band_sort
+
+		annotation SummarizationSetBy = Automatic
+
+	column threshold_used
+		dataType: double
+		isHidden
+		lineageTag: 97384d38-052d-475b-8a35-62d6cfd51f8e
+		summarizeBy: none
+		sourceColumn: threshold_used
+
+		annotation SummarizationSetBy = Automatic
+
+	column model_name
+		dataType: string
+		isHidden
+		lineageTag: 924c350f-e4a3-48d8-b260-4907f0978eef
+		summarizeBy: none
+		sourceColumn: model_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column MonthlyCharges
+		dataType: double
+		lineageTag: 85afe5f0-6b50-41bc-9249-fc48476f8ea4
+		summarizeBy: sum
+		sourceColumn: MonthlyCharges
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Months the customer has been active, 0-72.
+	column tenure
+		dataType: int64
+		formatString: 0
+		lineageTag: 1f33b91d-0190-49bd-9530-9d6432336848
+		summarizeBy: none
+		sourceColumn: tenure
+
+		annotation SummarizationSetBy = Automatic
+
+	column Contract
+		dataType: string
+		lineageTag: 4ee6957a-4e31-46e3-af9b-fc80ce7818cf
+		summarizeBy: none
+		sourceColumn: Contract
+
+		annotation SummarizationSetBy = Automatic
+
+	column PaymentMethod
+		dataType: string
+		lineageTag: 6c610f5d-4b98-4c0c-9100-1f758a3716be
+		summarizeBy: none
+		sourceColumn: PaymentMethod
+
+		annotation SummarizationSetBy = Automatic
+
+	column InternetService
+		dataType: string
+		lineageTag: 4347d3be-f1f2-4a1c-9dad-cca6a4fb60da
+		summarizeBy: none
+		sourceColumn: InternetService
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Banded tenure: 0-12m, 13-24m, 25-48m, 48m+.
+	column tenure_bucket
+		dataType: string
+		lineageTag: dd6c0a70-6667-4a93-864b-f863203f0640
+		summarizeBy: none
+		sourceColumn: tenure_bucket
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Count of add-on services the customer subscribes to, 0-8.
+	column services_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 3e9df44b-75ff-4f14-96d1-caf79d2ad202
+		summarizeBy: none
+		sourceColumn: services_count
+
+		annotation SummarizationSetBy = Automatic
+
+	/// MonthlyCharges x customer_lifetime_months from config.yaml.
+	column customer_value
+		dataType: double
+		lineageTag: 589fc551-c2cc-406c-82b1-282a5e3283ef
+		summarizeBy: sum
+		sourceColumn: customer_value
+
+		annotation SummarizationSetBy = Automatic
+
+	/// customer_value weighted by churn_probability.
+	column revenue_at_risk
+		dataType: double
+		lineageTag: 8ea237c3-d613-4bd0-b81d-73e5731ea7a5
+		summarizeBy: sum
+		sourceColumn: revenue_at_risk
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Top SHAP drivers for this customer, semicolon separated.
+	column top_risk_reasons
+		dataType: string
+		lineageTag: 5cc84c5a-16bd-4fa1-8060-58659056f06d
+		summarizeBy: none
+		sourceColumn: top_risk_reasons
+
+		annotation SummarizationSetBy = Automatic
+
+	column explanation_method
+		dataType: string
+		isHidden
+		lineageTag: bb551aeb-037d-4126-897e-52933a011fe2
+		summarizeBy: none
+		sourceColumn: explanation_method
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Observed outcome from the labelled dataset, Yes / No.
+	column actual_churn
+		dataType: string
+		lineageTag: 5d4c6fe9-b402-4dc1-a617-fbead8dfc649
+		summarizeBy: none
+		sourceColumn: actual_churn
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Hidden ordering key so risk_band reads Low < Medium < High < Critical
+	/// rather than the alphabetical Critical, High, Low, Medium.
+	/// Materialised in Power Query rather than as a DAX calculated column: a
+	/// calculated column reading risk_band, combined with risk_band's sortByColumn
+	/// pointing back at it, forms a circular dependency that blocks model load.
+	column risk_band_sort
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 5862f68c-cfe4-4962-9f4c-35ac8cf0a76b
+		summarizeBy: none
+		sourceColumn: risk_band_sort
+
+		annotation SummarizationSetBy = Automatic
+
+	partition predictions = m
+		mode: import
+		source =
+				let
+				    // Ordering key for risk_band. Kept here rather than in DAX to avoid a
+				    // circular dependency with risk_band's sortByColumn property.
+				    RiskBandOrder = [Low = 1, Medium = 2, High = 3, Critical = 4],
+				    Source = Csv.Document(
+				        File.Contents(RepoRoot & "\reports\scored_customers.csv"),
+				        [Delimiter = ",", Columns = 18, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]
+				    ),
+				    PromoteHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    ChangeTypes = Table.TransformColumnTypes(
+				        PromoteHeaders,
+				        {
+				            {"customerID", type text},
+				            {"churn_probability", type number},
+				            {"risk_flag", type text},
+				            {"risk_band", type text},
+				            {"threshold_used", type number},
+				            {"model_name", type text},
+				            {"MonthlyCharges", type number},
+				            {"tenure", Int64.Type},
+				            {"Contract", type text},
+				            {"PaymentMethod", type text},
+				            {"InternetService", type text},
+				            {"tenure_bucket", type text},
+				            {"services_count", Int64.Type},
+				            {"customer_value", type number},
+				            {"revenue_at_risk", type number},
+				            {"top_risk_reasons", type text},
+				            {"explanation_method", type text},
+				            {"actual_churn", type text}
+				        },
+				        "en-US"
+				    ),
+				    AddRiskBandSort = Table.AddColumn(
+				        ChangeTypes,
+				        "risk_band_sort",
+				        each Record.FieldOrDefault(RiskBandOrder, [risk_band], 99),
+				        Int64.Type
+				    )
+				in
+				    AddRiskBandSort
+
+	annotation PBI_ResultType = Table
+

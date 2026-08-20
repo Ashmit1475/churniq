@@ -1,0 +1,120 @@
+/// Measures-only table. Holds no data of its own; the single Placeholder column
+/// exists purely so the table can be created and is hidden from report view.
+/// DAX is taken verbatim from dashboard/POWERBI_GUIDE.md, except the two campaign
+/// constants, which are sourced from config.yaml.
+table _Measures
+	lineageTag: cbc47cf1-8f9c-441e-8695-dc58255eab8a
+
+	measure 'Total Customers' = DISTINCTCOUNT(predictions[customerID])
+		formatString: #,0
+		lineageTag: 0d18d6e3-d9e1-48cc-9e4f-ea9b754aa5cd
+
+	measure 'High Risk Customers' = CALCULATE([Total Customers], predictions[risk_flag] = "High")
+		formatString: #,0
+		lineageTag: 78fb46ec-1b9e-4717-a19c-dc0319635655
+
+	measure 'High Risk %' = DIVIDE([High Risk Customers], [Total Customers])
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: b4517048-9ce4-449d-a9d7-7166028847fb
+
+	measure 'Avg Churn Probability' = AVERAGE(predictions[churn_probability])
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: d6359a83-0672-4584-9537-fbc4134b2593
+
+	measure 'Revenue at Risk' = SUM(predictions[revenue_at_risk])
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: af60fddf-112d-42b1-a6da-434a260692e2
+
+	measure 'Total Customer Value' = SUM(predictions[customer_value])
+		lineageTag: 167eb44e-5c0f-4e86-bd38-3ff7b38fdc58
+
+	measure 'Revenue at Risk %' = DIVIDE([Revenue at Risk], [Total Customer Value])
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: 19dc641a-1003-428d-a464-02bded62e5e3
+
+	measure 'Monthly Recurring Revenue' = SUM(predictions[MonthlyCharges])
+		lineageTag: fdc1b250-1766-4379-92ff-784c093922b4
+
+	/// Cost of one retention offer, discount plus contact.
+	/// Source: config.yaml > business.retention_offer_cost (60.0).
+	measure 'Offer Cost' = 60
+		lineageTag: f4b9373b-46cb-432c-b64c-43c340a14948
+
+	/// Share of contacted at-risk customers expected to be retained.
+	/// Source: config.yaml > business.offer_acceptance_rate (0.30).
+	measure 'Acceptance Rate' = 0.30
+		lineageTag: f8cc273b-1315-4575-9983-502c8fd129a9
+
+	measure 'Campaign Cost' = [High Risk Customers] * [Offer Cost]
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: aedbe2fa-4f16-4e9c-b76c-8404d65ef529
+
+	measure 'Expected Revenue Saved' =
+			SUMX(
+			    FILTER(predictions, predictions[risk_flag] = "High"),
+			    predictions[revenue_at_risk]
+			) * [Acceptance Rate]
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: b2652d4b-bf92-419f-aff5-c465590eae87
+
+	measure 'Campaign Net Benefit' = [Expected Revenue Saved] - [Campaign Cost]
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: dde8f487-d252-49e6-93cf-126258176dd3
+
+	measure 'Campaign ROI' = DIVIDE([Campaign Net Benefit], [Campaign Cost])
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: c443c321-540f-4d84-8e24-c2bd36aeb802
+
+	measure 'Actual Churners' = CALCULATE([Total Customers], predictions[actual_churn] = "Yes")
+		formatString: #,0
+		lineageTag: 710eb8ec-5668-4047-b849-7a5bc63f3d20
+
+	measure 'True Positives' =
+			CALCULATE([Total Customers],
+			    predictions[risk_flag] = "High", predictions[actual_churn] = "Yes")
+		formatString: #,0
+		lineageTag: db772d8a-5603-4aba-a7ab-563045a33d29
+
+	measure 'False Positives' =
+			CALCULATE([Total Customers],
+			    predictions[risk_flag] = "High", predictions[actual_churn] = "No")
+		formatString: #,0
+		lineageTag: f44f5132-8c3a-4f91-85a6-a46ecc9bc30b
+
+	measure 'False Negatives' =
+			CALCULATE([Total Customers],
+			    predictions[risk_flag] = "Low", predictions[actual_churn] = "Yes")
+		formatString: #,0
+		lineageTag: b9b6e4bc-d6fa-4b1c-b8ac-29ffe1133cfc
+
+	measure Precision = DIVIDE([True Positives], [True Positives] + [False Positives])
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: 75ef6bdf-930a-4a20-830e-3bc7878f5701
+
+	measure Recall = DIVIDE([True Positives], [True Positives] + [False Negatives])
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: 6bde07f9-a358-4be4-a4e7-ed48ed2e542c
+
+	measure 'F1 Score' = DIVIDE(2 * [Precision] * [Recall], [Precision] + [Recall])
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: ff6391e9-0139-48b1-89e0-5e56eade94a0
+
+	column Placeholder
+		dataType: string
+		isHidden
+		lineageTag: cfe29fa9-37df-45e8-a485-5bdb4b01deb8
+		summarizeBy: none
+		sourceColumn: Placeholder
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _Measures = m
+		mode: import
+		source =
+				let
+				    Source = #table(type table [Placeholder = text], {})
+				in
+				    Source
+
+	annotation PBI_ResultType = Table
+

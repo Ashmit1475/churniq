@@ -1,0 +1,56 @@
+/// Expected-value sweep across candidate decision thresholds, from src/evaluate.py.
+/// Drives the threshold-choice line chart on the model performance page.
+table threshold_curve
+	lineageTag: b874231a-69b1-4fd5-bb74-36222984d996
+
+	/// Candidate probability cut-off for flagging a customer as High risk.
+	column threshold
+		dataType: double
+		lineageTag: 518dba3f-7df2-4e95-9595-c786ffeb826b
+		summarizeBy: none
+		sourceColumn: threshold
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Net campaign value at this threshold, using the config.yaml assumptions.
+	column expected_value
+		dataType: double
+		lineageTag: a0545ace-c31a-44e3-9aea-96811ec0007f
+		summarizeBy: sum
+		sourceColumn: expected_value
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Number of customers flagged High at this threshold.
+	column n_flagged
+		dataType: int64
+		formatString: 0
+		lineageTag: 71c1c8e3-0d3f-4359-a806-770916080d52
+		summarizeBy: sum
+		sourceColumn: n_flagged
+
+		annotation SummarizationSetBy = Automatic
+
+	partition threshold_curve = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(
+				        File.Contents(RepoRoot & "\reports\threshold_curve.csv"),
+				        [Delimiter = ",", Columns = 3, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]
+				    ),
+				    PromoteHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    ChangeTypes = Table.TransformColumnTypes(
+				        PromoteHeaders,
+				        {
+				            {"threshold", type number},
+				            {"expected_value", type number},
+				            {"n_flagged", Int64.Type}
+				        },
+				        "en-US"
+				    )
+				in
+				    ChangeTypes
+
+	annotation PBI_ResultType = Table
+

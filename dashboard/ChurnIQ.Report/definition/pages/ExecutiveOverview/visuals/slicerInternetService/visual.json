@@ -1,0 +1,67 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
+  "name": "slicerInternetService",
+  "position": {
+    "x": 16,
+    "y": 350,
+    "z": 7000,
+    "height": 158,
+    "width": 300,
+    "tabOrder": 7000
+  },
+  "visual": {
+    "visualType": "slicer",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "predictions"
+                    }
+                  },
+                  "Property": "InternetService"
+                }
+              },
+              "queryRef": "predictions.InternetService",
+              "nativeQueryRef": "InternetService",
+              "active": true
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "general": [
+        {
+          "properties": {}
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Filter by internet service'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

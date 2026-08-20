@@ -1,0 +1,67 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
+  "name": "textThresholdRationale",
+  "position": {
+    "x": 964,
+    "y": 438,
+    "z": 10000,
+    "height": 246,
+    "width": 300,
+    "tabOrder": 10000
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": "Why 0.50 was rejected",
+                    "textStyle": {
+                      "fontFamily": "Segoe UI Semibold",
+                      "fontSize": "10pt",
+                      "fontWeight": "bold",
+                      "color": "#252423"
+                    }
+                  }
+                ],
+                "horizontalTextAlignment": "left"
+              },
+              {
+                "textRuns": [
+                  {
+                    "value": "The 0.50 default assumes a false positive and a false negative cost the same, which retention economics do not: a wrongly flagged customer wastes one $60 retention offer, while a missed churner forgoes roughly $234 of expected saved revenue (12 months of charges × 30% acceptance). The tuned 0.55 threshold instead maximises expected campaign uplift — value retained minus campaign spend, measured against doing nothing — so it follows the cost and acceptance assumptions in config.yaml rather than a statistical default.",
+                    "textStyle": {
+                      "fontFamily": "Segoe UI",
+                      "fontSize": "9pt",
+                      "color": "#323130"
+                    }
+                  }
+                ],
+                "horizontalTextAlignment": "left"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

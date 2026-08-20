@@ -1,0 +1,45 @@
+/// Global feature importances for the winning model, written by src/evaluate.py.
+/// One row per feature; intentionally unrelated to the predictions table.
+table churn_drivers
+	lineageTag: 737ca415-c523-442d-847a-6c25b739aa5b
+
+	/// Feature name as engineered in src/features.py.
+	column feature
+		dataType: string
+		lineageTag: 48181d31-5751-4db4-b42b-ca47afd29e22
+		summarizeBy: none
+		sourceColumn: feature
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Absolute importance score. Higher means more influence on the prediction.
+	column importance
+		dataType: double
+		lineageTag: deacd24d-d83d-4ea7-9061-2e486026b66f
+		summarizeBy: sum
+		sourceColumn: importance
+
+		annotation SummarizationSetBy = Automatic
+
+	partition churn_drivers = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(
+				        File.Contents(RepoRoot & "\reports\churn_drivers.csv"),
+				        [Delimiter = ",", Columns = 2, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]
+				    ),
+				    PromoteHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    ChangeTypes = Table.TransformColumnTypes(
+				        PromoteHeaders,
+				        {
+				            {"feature", type text},
+				            {"importance", type number}
+				        },
+				        "en-US"
+				    )
+				in
+				    ChangeTypes
+
+	annotation PBI_ResultType = Table
+

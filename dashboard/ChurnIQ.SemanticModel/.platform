@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "ChurnIQ",
+    "description": "Churn risk scores, model drivers and threshold economics for the ChurnIQ pipeline."
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "5b1a60d2-76e8-42a6-a017-db3ecef62896"
+  }
+}

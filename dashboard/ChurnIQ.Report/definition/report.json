@@ -1,0 +1,71 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/report/3.3.0/schema.json",
+  "themeCollection": {
+    "baseTheme": {
+      "name": "CY26SU05",
+      "reportVersionAtImport": {
+        "visual": "2.9.0",
+        "page": "2.1.0",
+        "report": "3.3.0"
+      },
+      "type": "SharedResources"
+    },
+    "customTheme": {
+      "name": "ChurnIQ",
+      "reportVersionAtImport": {
+        "visual": "2.9.0",
+        "page": "2.1.0",
+        "report": "3.3.0"
+      },
+      "type": "RegisteredResources"
+    }
+  },
+  "objects": {
+    "outspacePane": [
+      {
+        "properties": {
+          "expanded": {
+            "expr": {
+              "Literal": {
+                "Value": "false"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "resourcePackages": [
+    {
+      "name": "RegisteredResources",
+      "type": "RegisteredResources",
+      "items": [
+        {
+          "name": "ChurnIQ",
+          "path": "ChurnIQ",
+          "type": "CustomTheme"
+        },
+        {
+          "name": "pr_curve.png",
+          "path": "pr_curve.png",
+          "type": "Image"
+        },
+        {
+          "name": "roc_curve.png",
+          "path": "roc_curve.png",
+          "type": "Image"
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "hideVisualContainerHeader": true,
+    "useEnhancedTooltips": false
+  },
+  "annotations": [
+    {
+      "name": "defaultPage",
+      "value": "ExecutiveOverview"
+    }
+  ]
+}

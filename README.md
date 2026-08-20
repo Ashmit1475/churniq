@@ -84,34 +84,64 @@ python src/evaluate.py                       # figures for the README
 pytest -q                                    # tests
 ```
 
+## Dashboard
+
+Three pages in Power BI, built on the same `reports/scored_customers.csv` the pipeline writes. Open `dashboard/ChurnIQ.pbip` in Power BI Desktop to edit it, or `dashboard/ChurnIQ pbix File.pbix` to jump straight to the finished report. Because both read the pipeline's own output, the Revenue at Risk card ties back to `reports/metrics.json` to the dollar ($2,547,967).
+
+**Page 1 — Executive Overview.** How big is the churn problem, and where is the revenue concentrated?
+
+![ChurnIQ dashboard, executive overview page](reports/figures/dashboard_p1.png)
+
+**Page 2 — Customer Risk List.** Which customers should retention call today, and what is driving each one's score?
+
+![ChurnIQ dashboard, customer risk list page](reports/figures/dashboard_p2.png)
+
+**Page 3 — Model Performance.** How accurate is the model, where does it fail, and why is the cut-off 0.55 rather than 0.50?
+
+![ChurnIQ dashboard, model performance page](reports/figures/dashboard_p3.png)
+
+### Why the report is committed as PBIP, not just PBIX
+
+A `.pbix` is an opaque zip file. Git can store it, but it cannot diff or merge it — every edit reads as "binary file changed", and two people touching the same report produce a conflict nobody can resolve. So the report is committed as a **PBIP project** (`dashboard/ChurnIQ.pbip`), which Power BI Desktop saves as plain text: the report definition becomes one JSON file per page and per visual under `ChurnIQ.Report/definition/` (PBIR format), and the semantic model becomes **TMDL** under `ChurnIQ.SemanticModel/definition/` — a line-oriented format where every table, column and DAX measure is its own readable text block.
+
+The practical payoff is that changing a measure is a one-line diff in `_Measures.tmdl`, moving a visual only touches that visual's `visual.json`, and a dashboard can go through code review like any other source. The `.pbix` is committed alongside purely as a convenience for opening the finished report. Machine-local files — `.pbi/localSettings.json`, `.pbi/cache.abf`, `.pbi/unappliedChanges.json` — are excluded in `.gitignore`, since they hold local paths and cached data rather than report definition.
+
 ## Results
 
-> Fill these in from `reports/metrics.json` after your first run. Do not invent numbers — you will be asked about them in an interview.
+All figures below come from `reports/metrics.json`, written by the run of `2026-08-17` on the synthetic dataset.
 
 | Metric | Value |
 |---|---|
-| Rows | _7,043_ |
-| Churn rate | _25.6%_ |
-| Best model | _<from metrics.json>_ |
-| Test ROC-AUC | _0.__ |
-| Test PR-AUC | _0.__ |
-| Precision @ tuned threshold | _0.__ |
-| Recall @ tuned threshold | _0.__ |
-| Tuned threshold | _0.__ (vs. 0.50 default) |
-| Revenue at risk | _$___ |
+| Rows | 7,043 |
+| Churn rate | 26.5% |
+| Best model | Logistic Regression |
+| Test ROC-AUC | 0.842 |
+| Test PR-AUC | 0.635 |
+| Precision @ tuned threshold | 0.536 |
+| Recall @ tuned threshold | 0.754 |
+| Tuned threshold | 0.55 (vs. 0.50 default) |
+| Revenue at risk | $2,547,967 |
+
+Moving the threshold from 0.50 to 0.55 trades recall (0.794 → 0.754) for precision (0.499 → 0.536): 54 fewer wasted offers at the cost of 15 missed churners, which is the trade the value curve below prices out.
 
 **Model comparison** (5-fold stratified CV on the training split):
 
 | Model | CV ROC-AUC | Test ROC-AUC |
 |---|---|---|
-| Logistic Regression | | |
-| Random Forest | | |
-| Gradient Boosting | | |
+| Logistic Regression | 0.846 ± 0.011 | 0.842 |
+| Random Forest | 0.842 ± 0.009 | 0.838 |
+| Gradient Boosting | 0.832 ± 0.008 | 0.831 |
+
+The spread between the best and worst CV ROC-AUC is 0.014, against per-model CV standard deviations of 0.008–0.011 — so the simplest model wins without giving up measurable ranking quality.
 
 ![Model comparison](reports/figures/model_comparison.png)
 ![ROC curve](reports/figures/roc_curve.png)
+![Precision-recall curve](reports/figures/pr_curve.png)
+![Confusion matrix](reports/figures/confusion_matrix.png)
 ![Top churn drivers](reports/figures/churn_drivers.png)
 ![Threshold value](reports/figures/threshold_value.png)
+
+The confusion matrix is drawn at the tuned 0.55 threshold: of 1,409 test customers, 282 churners are caught and 92 missed, at the cost of 244 offers sent to customers who would have stayed.
 
 ## Design decisions worth explaining
 

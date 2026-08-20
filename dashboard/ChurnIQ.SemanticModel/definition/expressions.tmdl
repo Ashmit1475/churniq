@@ -1,0 +1,12 @@
+/// Absolute path to the ChurnIQ repository root, without a trailing slash.
+/// Power BI's M engine has no concept of a path relative to the project file, so
+/// every table source is built as RepoRoot & "\reports\<file>.csv". After cloning
+/// the repo, change this one value (Home > Transform data > Manage parameters)
+/// and all three tables repoint.
+expression RepoRoot = "C:\Users\ashmi\churniq" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+	lineageTag: ef270541-8934-483f-afa1-42717d43f842
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Text
+
