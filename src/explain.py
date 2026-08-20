@@ -10,20 +10,87 @@ makes the risk score usable by a retention team rather than just a number.
 
 from __future__ import annotations
 
+import re
+from collections.abc import Sequence
+
 import numpy as np
 import pandas as pd
 
 from pipeline import feature_names
 
+# Engineered features whose column name does not read as English on its own.
+# Everything else is humanised generically by _humanize().
+_LABELS = {
+    "is_month_to_month": "Month-to-month contract",
+    "has_auto_payment": "Automatic payment",
+    "is_new_customer": "First-year customer",
+    "avg_monthly_spend": "Average monthly spend",
+    "services_count": "Services subscribed",
+    "charge_ratio": "Bill vs lifetime average",
+    "tenure_bucket": "Tenure band",
+}
 
-def _prettify(raw_name: str) -> str:
-    """Turn 'cat__Contract_Month-to-month' into 'Contract: Month-to-month'."""
-    name = raw_name.split("__", 1)[-1]
-    if "_" in name:
-        col, _, val = name.partition("_")
-        if val:
-            return f"{col}: {val}"
-    return name
+
+def _humanize(col: str) -> str:
+    """'MonthlyCharges' -> 'Monthly charges'; 'services_count' -> 'Services count'."""
+    if col in _LABELS:
+        return _LABELS[col]
+    spaced = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", col).replace("_", " ").strip()
+    return spaced[:1].upper() + spaced[1:] if spaced else col
+
+
+def _split_categorical(name: str, cat_cols: Sequence[str]) -> tuple[str, str] | None:
+    """Split 'tenure_bucket_0-12m' into ('tenure_bucket', '0-12m').
+
+    Matches against the *actual* source column names, longest first. Partitioning
+    on the first underscore instead would turn 'tenure_bucket_0-12m' into
+    'tenure: bucket_0-12m' - the source column names are the only reliable guide
+    because both column names and category values may contain underscores.
+    """
+    for col in sorted(cat_cols, key=len, reverse=True):
+        if name.startswith(f"{col}_"):
+            return col, name[len(col) + 1:]
+    return None
+
+
+def _source_columns(fitted_pipeline) -> dict[str, list[str]]:
+    """Map each ColumnTransformer branch name to the source columns it consumed."""
+    prep = fitted_pipeline.named_steps["prep"]
+    out: dict[str, list[str]] = {}
+    for name, _, columns in getattr(prep, "transformers_", []):
+        if isinstance(columns, (list, tuple)):
+            out[name] = list(columns)
+    return out
+
+
+def _prettify(raw_name: str, cat_cols: Sequence[str] = ()) -> str:
+    """Turn 'cat__Contract_Month-to-month' into 'Contract: Month-to-month'.
+
+    Numeric features keep their identity ('num__is_month_to_month' ->
+    'Month-to-month contract'); only one-hot columns are split into
+    'column: value'.
+    """
+    branch, sep, name = raw_name.partition("__")
+    if not sep:
+        branch, name = "", raw_name
+
+    if branch == "cat":
+        split = _split_categorical(name, cat_cols)
+        if split:
+            col, val = split
+            return f"{_humanize(col)}: {val}"
+    elif branch == "num":
+        return _humanize(name)
+
+    # Unknown branch: fall back to a conservative first-underscore split.
+    col, _, val = name.partition("_")
+    return f"{_humanize(col)}: {val}" if val else _humanize(name)
+
+
+def pretty_feature_names(fitted_pipeline) -> list[str]:
+    """Display-ready labels aligned 1:1 with feature_names(fitted_pipeline)."""
+    cat_cols = _source_columns(fitted_pipeline).get("cat", [])
+    return [_prettify(n, cat_cols) for n in feature_names(fitted_pipeline)]
 
 
 def shap_contributions(fitted_pipeline, X: pd.DataFrame, max_samples: int = 2000):
@@ -101,13 +168,14 @@ def fallback_contributions(fitted_pipeline, X: pd.DataFrame):
 def top_reasons(
     contributions: np.ndarray, names: list[str], k: int = 3
 ) -> list[str]:
-    """For each row, the k features pushing risk *up* the most."""
+    """For each row, the k features pushing risk *up* the most.
+
+    `names` are expected to be display-ready already (see pretty_feature_names).
+    """
     reasons: list[str] = []
     order = np.argsort(-contributions, axis=1)[:, :k]
     for row_i, cols in enumerate(order):
-        picks = [
-            _prettify(names[c]) for c in cols if contributions[row_i, c] > 0
-        ]
+        picks = [names[c] for c in cols if contributions[row_i, c] > 0]
         reasons.append("; ".join(picks) if picks else "no dominant risk driver")
     return reasons
 
@@ -119,7 +187,8 @@ def explain(fitted_pipeline, X: pd.DataFrame, max_samples: int = 2000, k: int = 
     if contrib is None:
         contrib, names = fallback_contributions(fitted_pipeline, X)
         method = "importance_proxy"
-    return top_reasons(np.asarray(contrib), names, k), method
+    labels = pretty_feature_names(fitted_pipeline)
+    return top_reasons(np.asarray(contrib), labels, k), method
 
 
 def global_importance(
@@ -131,7 +200,9 @@ def global_importance(
         contrib, names = fallback_contributions(fitted_pipeline, X)
     mean_abs = np.abs(np.asarray(contrib)).mean(axis=0)
     return (
-        pd.DataFrame({"feature": [_prettify(n) for n in names], "importance": mean_abs})
+        pd.DataFrame(
+            {"feature": pretty_feature_names(fitted_pipeline), "importance": mean_abs}
+        )
         .sort_values("importance", ascending=False)
         .head(top)
         .reset_index(drop=True)

@@ -125,3 +125,47 @@ def simulate_campaign(
         "roi": (expected_saved - campaign_cost) / campaign_cost if campaign_cost else 0.0,
         "avg_risk_of_targeted": float(prob.mean()) if len(target) else 0.0,
     }
+
+
+def campaign_sweep(
+    scored: pd.DataFrame,
+    cfg: Config,
+    step: int = 50,
+    prob_col: str = "churn_probability",
+    charges_col: str = "MonthlyCharges",
+) -> pd.DataFrame:
+    """simulate_campaign() evaluated at every campaign size, in one pass.
+
+    Targeting the top N riskiest customers is nested: the top 100 contains the
+    top 50. So sorting once and taking a cumulative sum gives the whole curve in
+    O(N), instead of re-running nlargest for each of the ~140 sizes on the grid.
+    Sweeping the *entire* base matters - capping the sweep early makes the
+    maximum land on the last point evaluated and reports a peak that isn't one.
+    """
+    b = cfg["business"]
+    cost = float(b["retention_offer_cost"])
+    accept = float(b["offer_acceptance_rate"])
+
+    # kind="stable" so ties resolve the same way nlargest(keep="first") does.
+    ordered = scored.sort_values(prob_col, ascending=False, kind="stable")
+    value = customer_value(ordered[charges_col].to_numpy(), cfg)
+    prob = ordered[prob_col].to_numpy()
+
+    cum_saved = np.cumsum(prob * value) * accept
+    sizes = np.arange(step, len(ordered) + 1, step)
+    if len(sizes) == 0:
+        sizes = np.array([len(ordered)])
+
+    saved = cum_saved[sizes - 1]
+    spend = cost * sizes
+    net = saved - spend
+
+    return pd.DataFrame(
+        {
+            "customers_targeted": sizes,
+            "campaign_cost": spend,
+            "expected_revenue_saved": saved,
+            "net_benefit": net,
+            "roi": np.divide(net, spend, out=np.zeros_like(net), where=spend != 0),
+        }
+    )
