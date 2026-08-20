@@ -142,7 +142,14 @@
             "value": {
               "expr": {
                 "Literal": {
-                  "Value": "'0.55'"
+                  "Value": "0.55D"
+                }
+              }
+            },
+            "width": {
+              "expr": {
+                "Literal": {
+                  "Value": "2D"
                 }
               }
             },
