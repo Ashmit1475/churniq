@@ -7,8 +7,7 @@ https://churniq-predictor.streamlit.app/
 
 Built with Python, SQL, scikit-learn, SHAP, Streamlit and Power BI.
 
-> Replace this line with a GIF of the Streamlit app or Power BI report once you've recorded one — it is the first thing anyone looks at.
-
+>
 ---
 
 ## The problem
