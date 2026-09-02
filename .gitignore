@@ -28,6 +28,12 @@ models/*.joblib
 reports/*.csv
 reports/metrics.json
 
+# ...except the two artifacts the deployed Streamlit app runs from. The cloud
+# instance has no SQLite database, so these must be in the repo or the app has
+# no model and no data. Both are small (11 KB and 1.3 MB).
+!models/churn_pipeline.pkl
+!reports/scored_customers.csv
+
 # Keep figures so the README renders on GitHub
 !reports/figures/*.png
 

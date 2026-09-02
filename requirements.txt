@@ -1,18 +1,25 @@
+# Runtime dependencies for the deployed Streamlit app (src/app.py).
+# This is the file Streamlit Community Cloud installs, so it holds only what the
+# app's import graph actually reaches. Pipeline-only and test-only packages live
+# in requirements-dev.txt.
+#
+# Versions are pinned to the environment the committed model artifact was
+# trained in - unpinning scikit-learn or numpy risks an unpickling mismatch.
 pandas==2.2.3
 numpy==2.1.3
-scikit-learn==1.5.2
-sqlalchemy==2.0.36
-pyyaml==6.0.2
-joblib==1.4.2
+scikit-learn==1.5.2      # src/pipeline.py, and unpickling churn_pipeline.pkl
+sqlalchemy==2.0.36       # src/db.py - optional import, but the DB path needs it
+pyyaml==6.0.2            # src/config.py
+joblib==1.4.2            # loads the model artifact
+streamlit==1.41.1
+plotly==5.24.1
+# Not imported by our code directly, but st.dataframe() serialises through it and
+# streamlit declares pyarrow>=7.0 anyway. Pinned so the version is explicit.
 pyarrow==18.1.0
-matplotlib==3.9.3
 # 0.46.0 ships no cp313 wheel and tries to compile its C extension from source,
 # which needs MSVC build tools. 0.52.0 publishes a cp312-abi3 wheel that Python
 # 3.13 installs directly. Bump only if you are on Python <= 3.12.
-shap==0.52.0
-streamlit==1.41.1
-plotly==5.24.1
-pytest==8.3.4
+shap==0.52.0             # src/explain.py, reached by the "Score new data" tab
 
 # Uncomment if you move from SQLite to hosted Postgres (Supabase / Neon)
 # psycopg2-binary==2.9.10

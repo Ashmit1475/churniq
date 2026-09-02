@@ -1,0 +1,7 @@
+# Everything needed to run the full pipeline and the tests locally.
+# Kept separate from requirements.txt so the deployed app doesn't install build
+# tooling it never imports.
+-r requirements.txt
+
+matplotlib==3.9.3        # src/evaluate.py - writes the README figures
+pytest==8.3.4            # tests/
