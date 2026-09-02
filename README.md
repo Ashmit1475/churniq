@@ -2,6 +2,9 @@
 
 **A churn-risk scoring system that ranks telecom customers by predicted churn probability, explains each score, and quantifies the revenue at stake.**
 
+Live Application
+https://churniq-predictor.streamlit.app/
+
 Built with Python, SQL, scikit-learn, SHAP, Streamlit and Power BI.
 
 > Replace this line with a GIF of the Streamlit app or Power BI report once you've recorded one — it is the first thing anyone looks at.
@@ -208,6 +211,10 @@ churniq/
 ```
 
 ## Deployment
+
+The ChurnIQ application is deployed on Streamlit Community Cloud.
+Live Application: https://churniq-predictor.streamlit.app/
+The deployed application runs from committed model and scoring artifacts, allowing it to operate without requiring the local SQLite database.
 
 **Streamlit app** — free on [Streamlit Community Cloud](https://share.streamlit.io): connect the GitHub repo, set the entrypoint to `src/app.py`. Commit `models/churn_pipeline.pkl` and `reports/scored_customers.csv` so the cloud instance has data without needing a database.
 
