@@ -1,5 +1,7 @@
 # ChurnIQ
 
+[![CI](https://github.com/Ashmit1475/ChurnIQ---Clean/actions/workflows/ci.yml/badge.svg)](https://github.com/Ashmit1475/ChurnIQ---Clean/actions/workflows/ci.yml)
+
 **A churn-risk scoring system that ranks telecom customers by predicted churn probability, explains each score, and quantifies the revenue at stake.**
 
 Live Application
@@ -35,7 +37,7 @@ ChurnIQ answers all three. It scores every customer, attaches the top drivers be
     │
     ▼
  train.py ──────────► 3 models compared (5-fold stratified CV)
-    │                 └── best by ROC-AUC → threshold tuned for business value
+    │                 └── best by CV ROC-AUC → threshold tuned for business value
     ▼
  models/churn_pipeline.pkl        (self-contained: preprocessing + model)
     │
@@ -86,6 +88,19 @@ python src/predict.py --csv new_batch.csv    # score a brand-new file
 python src/evaluate.py                       # figures for the README
 pytest -q                                    # tests
 ```
+
+### Continuous integration
+
+Every push to `main` runs the suite on Python 3.11 via GitHub Actions
+(`.github/workflows/ci.yml`) — that is what the badge at the top reports.
+
+CI installs `requirements-ci.txt` rather than `requirements-dev.txt`, because
+`shap==0.52.0` publishes no distribution for Python 3.11. That costs nothing:
+`explain.py` treats SHAP as optional and falls back to an importance proxy when
+it is missing, so CI exercises the fallback branch that a SHAP-installed
+environment never reaches. The pin stays as it is because `requirements.txt` is
+what Streamlit Community Cloud installs for the live app, and it is matched to
+the version the committed model artifact was trained under.
 
 ## Dashboard
 
@@ -184,7 +199,10 @@ Churn losses among customers we never contact are excluded deliberately — they
 churniq/
 ├── config.yaml                  # every path and parameter — nothing hardcoded in src/
 ├── run_pipeline.py              # one-command reproduction
-├── requirements.txt
+├── requirements.txt             # runtime deps for the deployed app
+├── requirements-dev.txt         # + pipeline and test tooling
+├── requirements-ci.txt          # the subset the test job installs
+├── .github/workflows/ci.yml     # pytest on every push to main
 ├── src/
 │   ├── config.py                # config loading + path resolution
 │   ├── db.py                    # SQLAlchemy, with a stdlib sqlite3 fallback
@@ -201,7 +219,7 @@ churniq/
 ├── dashboard/
 │   └── POWERBI_GUIDE.md         # DAX measures + 3-page build guide
 ├── tests/
-│   └── test_pipeline.py         # 13 tests over cleaning, features, business logic
+│   └── test_pipeline.py         # 19 tests over cleaning, features, business logic
 ├── notebooks/
 │   └── 01_eda.ipynb             # exploration — not the deliverable
 └── reports/

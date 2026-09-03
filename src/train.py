@@ -12,9 +12,13 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Mapping
 from datetime import datetime, timezone
+from typing import Any
 
 import joblib
+import numpy as np
+import pandas as pd
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
@@ -32,7 +36,9 @@ from features import build_feature_table, split_columns
 from pipeline import build_estimators, build_pipeline
 
 
-def evaluate_at(y_true, proba, threshold: float) -> dict[str, float]:
+def evaluate_at(
+    y_true: pd.Series | np.ndarray, proba: np.ndarray, threshold: float
+) -> dict[str, float | int]:
     pred = (proba >= threshold).astype(int)
     tn, fp, fn, tp = confusion_matrix(y_true, pred, labels=[0, 1]).ravel()
     return {
@@ -46,6 +52,26 @@ def evaluate_at(y_true, proba, threshold: float) -> dict[str, float]:
         "false_negatives": int(fn),
         "true_positives": int(tp),
     }
+
+
+def select_best_model(results: Mapping[str, dict[str, Any]]) -> str:
+    """Pick the winning model by cross-validated ROC-AUC on the training split.
+
+    Selection deliberately ignores `test_roc_auc`. Choosing the model that scores
+    best on the test set folds that set into model selection, and the test number
+    reported afterwards is then an optimistic estimate of a model picked partly
+    for scoring well on it - the held-out set is no longer held out.
+
+    Ties break toward the lower CV standard deviation: given equal mean ranking
+    quality, prefer the model whose quality varies least across folds.
+    """
+    return max(
+        results,
+        key=lambda name: (
+            results[name]["cv_roc_auc_mean"],
+            -results[name]["cv_roc_auc_std"],
+        ),
+    )
 
 
 def main() -> None:
@@ -104,10 +130,11 @@ def main() -> None:
             f"   test ROC-AUC {results[name]['test_roc_auc']:.4f}"
         )
 
-    best_name = max(results, key=lambda n: results[n]["test_roc_auc"])
+    best_name = select_best_model(results)
     best_pipe = fitted[best_name]
     best_proba = best_pipe.predict_proba(X_test)[:, 1]
-    print(f"\nBest model: {best_name}")
+    print(f"\nBest model: {best_name}  (selected on CV ROC-AUC, not the test score)")
+    print(f"  held-out test ROC-AUC: {results[best_name]['test_roc_auc']:.4f}")
 
     # ------------------------------------------------------- threshold tuning
     threshold, best_value, curve = tune_threshold(

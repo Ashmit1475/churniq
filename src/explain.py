@@ -15,6 +15,7 @@ from collections.abc import Sequence
 
 import numpy as np
 import pandas as pd
+from sklearn.pipeline import Pipeline
 
 from pipeline import feature_names
 
@@ -53,7 +54,7 @@ def _split_categorical(name: str, cat_cols: Sequence[str]) -> tuple[str, str] | 
     return None
 
 
-def _source_columns(fitted_pipeline) -> dict[str, list[str]]:
+def _source_columns(fitted_pipeline: Pipeline) -> dict[str, list[str]]:
     """Map each ColumnTransformer branch name to the source columns it consumed."""
     prep = fitted_pipeline.named_steps["prep"]
     out: dict[str, list[str]] = {}
@@ -87,14 +88,19 @@ def _prettify(raw_name: str, cat_cols: Sequence[str] = ()) -> str:
     return f"{_humanize(col)}: {val}" if val else _humanize(name)
 
 
-def pretty_feature_names(fitted_pipeline) -> list[str]:
+def pretty_feature_names(fitted_pipeline: Pipeline) -> list[str]:
     """Display-ready labels aligned 1:1 with feature_names(fitted_pipeline)."""
     cat_cols = _source_columns(fitted_pipeline).get("cat", [])
     return [_prettify(n, cat_cols) for n in feature_names(fitted_pipeline)]
 
 
-def shap_contributions(fitted_pipeline, X: pd.DataFrame, max_samples: int = 2000):
+def shap_contributions(
+    fitted_pipeline: Pipeline, X: pd.DataFrame
+) -> tuple[np.ndarray | None, list[str]]:
     """Return (matrix of per-feature contributions, feature names) or (None, names).
+
+    Every row of `X` gets a contribution row - callers that only need an
+    aggregate should sample before calling (see `global_importance`).
 
     Explainer choice matters for runtime:
       * Tree models  -> TreeExplainer in tree_path_dependent mode (no background
@@ -141,7 +147,9 @@ def shap_contributions(fitted_pipeline, X: pd.DataFrame, max_samples: int = 2000
         return None, names
 
 
-def fallback_contributions(fitted_pipeline, X: pd.DataFrame):
+def fallback_contributions(
+    fitted_pipeline: Pipeline, X: pd.DataFrame
+) -> tuple[np.ndarray, list[str]]:
     """Approximate contributions when SHAP is unavailable.
 
     Uses (standardised feature value) x (global importance) as a rough per-row
@@ -180,9 +188,16 @@ def top_reasons(
     return reasons
 
 
-def explain(fitted_pipeline, X: pd.DataFrame, max_samples: int = 2000, k: int = 3):
-    """Return (reason strings, method used)."""
-    contrib, names = shap_contributions(fitted_pipeline, X, max_samples)
+def explain(
+    fitted_pipeline: Pipeline, X: pd.DataFrame, k: int = 3
+) -> tuple[list[str], str]:
+    """Return (reason strings, method used), one reason string per row of X.
+
+    Deliberately uncapped: every scored customer needs their own reasons, so
+    sampling here would leave rows with no explanation. The cost is linear in
+    the number of rows.
+    """
+    contrib, names = shap_contributions(fitted_pipeline, X)
     method = "shap"
     if contrib is None:
         contrib, names = fallback_contributions(fitted_pipeline, X)
@@ -192,10 +207,24 @@ def explain(fitted_pipeline, X: pd.DataFrame, max_samples: int = 2000, k: int = 
 
 
 def global_importance(
-    fitted_pipeline, X: pd.DataFrame, max_samples: int = 2000, top: int = 15
+    fitted_pipeline: Pipeline,
+    X: pd.DataFrame,
+    max_samples: int = 2000,
+    top: int = 15,
 ) -> pd.DataFrame:
-    """Mean absolute contribution per feature - the 'top churn drivers' chart."""
-    contrib, names = shap_contributions(fitted_pipeline, X, max_samples)
+    """Mean absolute contribution per feature - the 'top churn drivers' chart.
+
+    `max_samples` caps the rows the explainer actually runs over. A mean absolute
+    contribution converges long before a whole dataset is consumed, so sampling
+    costs nothing here and bounds the work: SHAP over a tree model is per-row,
+    so an uncapped call grows linearly with the dataset and is the slowest step
+    in evaluate.py on anything larger than the Telco file. The sample is drawn
+    with a fixed seed so the drivers chart is reproducible.
+    """
+    if max_samples and len(X) > max_samples:
+        X = X.sample(max_samples, random_state=0)
+
+    contrib, names = shap_contributions(fitted_pipeline, X)
     if contrib is None:
         contrib, names = fallback_contributions(fitted_pipeline, X)
     mean_abs = np.abs(np.asarray(contrib)).mean(axis=0)

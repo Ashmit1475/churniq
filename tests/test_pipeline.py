@@ -56,6 +56,17 @@ def test_clean_drops_duplicate_ids(raw):
     assert out["customerID"].duplicated().sum() == 0
 
 
+def test_clean_names_the_column_when_an_integer_cast_fails(raw):
+    """A blank tenure must fail with the column and row count, not with pandas'
+    'Cannot convert non-finite values' from somewhere inside astype()."""
+    broken = raw.copy()
+    broken["tenure"] = broken["tenure"].astype(object)
+    broken.loc[broken.index[0], "tenure"] = ""
+
+    with pytest.raises(ValueError, match=r"tenure: 1 of .* rows are not numeric"):
+        clean(broken)
+
+
 # ------------------------------------------------------- feature engineering
 def test_no_nulls_or_infinities(feats):
     assert feats.isna().sum().sum() == 0
@@ -93,6 +104,22 @@ def test_tenure_buckets_cover_every_row(feats, cfg):
     labels = set(cfg["features"]["tenure_buckets"]["labels"])
     assert set(feats["tenure_bucket"].unique()) <= labels
     assert "nan" not in feats["tenure_bucket"].unique()
+
+
+def test_tenure_beyond_the_observed_range_still_buckets(cfg):
+    """The top bin must be unbounded. A hard edge drops long-tenure customers
+    into a "nan" bucket the encoder never saw, silently zeroing their tenure
+    signal instead of failing - and the Telco file's 72-month ceiling is a
+    property of that extract, not of telecom customers."""
+    row = pd.DataFrame(
+        {
+            "customerID": ["X"], "tenure": [4000], "TotalCharges": [320000.0],
+            "MonthlyCharges": [80.0], "Contract": ["Two year"],
+            "PaymentMethod": ["Credit card (automatic)"], "PhoneService": ["Yes"],
+        }
+    )
+    out = add_engineered_features(row, cfg)
+    assert out["tenure_bucket"].iloc[0] in set(cfg["features"]["tenure_buckets"]["labels"])
 
 
 # ------------------------------------------------------------------ business
@@ -149,9 +176,34 @@ def test_campaign_simulation_is_internally_consistent(cfg):
     assert sim["avg_risk_of_targeted"] > scored["churn_probability"].mean()
 
 
+# ------------------------------------------------------------ model selection
+def test_selection_ignores_the_test_score():
+    """Picking the model with the best test ROC-AUC folds the held-out set into
+    model selection, and the test number reported afterwards is then no longer
+    an honest estimate. Selection must read the cross-validated score."""
+    from train import select_best_model
+
+    results = {
+        "steady": {"cv_roc_auc_mean": 0.86, "cv_roc_auc_std": 0.01, "test_roc_auc": 0.80},
+        "lucky": {"cv_roc_auc_mean": 0.81, "cv_roc_auc_std": 0.01, "test_roc_auc": 0.99},
+    }
+    assert select_best_model(results) == "steady"
+
+
+def test_selection_breaks_ties_on_fold_stability():
+    from train import select_best_model
+
+    results = {
+        "noisy": {"cv_roc_auc_mean": 0.84, "cv_roc_auc_std": 0.04, "test_roc_auc": 0.90},
+        "stable": {"cv_roc_auc_mean": 0.84, "cv_roc_auc_std": 0.01, "test_roc_auc": 0.70},
+    }
+    assert select_best_model(results) == "stable"
+
+
 # ----------------------------------------------------------------- reusability
-def test_unseen_category_does_not_break_encoding(feats, cfg):
-    """The reason handle_unknown='ignore' is in the pipeline."""
+@pytest.fixture(scope="module")
+def fitted_pipe(feats, cfg):
+    """A fitted pipeline over the fixture data, shared by the tests below."""
     pytest.importorskip("sklearn")
     from features import split_columns
     from pipeline import build_pipeline
@@ -163,7 +215,47 @@ def test_unseen_category_does_not_break_encoding(feats, cfg):
 
     pipe = build_pipeline(LogisticRegression(max_iter=1000), numeric, categorical)
     pipe.fit(X, y)
+    return pipe, X
 
+
+def test_global_importance_honours_its_sample_cap(fitted_pipe, monkeypatch):
+    """max_samples is documented as a runtime cap, so it has to bound the work.
+    It was previously accepted and ignored - the explainer ran over every row,
+    which is per-row cost for a tree model and grows with the dataset."""
+    import explain as explain_mod
+
+    pipe, X = fitted_pipe
+    seen: list[int] = []
+    real = explain_mod.shap_contributions
+
+    def spy(fitted_pipeline, frame):
+        seen.append(len(frame))
+        return real(fitted_pipeline, frame)
+
+    monkeypatch.setattr(explain_mod, "shap_contributions", spy)
+    imp = explain_mod.global_importance(pipe, X, max_samples=25, top=5)
+
+    assert seen == [25], f"explained {seen} rows, expected the 25-row cap"
+    assert len(imp) == 5
+    assert imp["importance"].is_monotonic_decreasing
+
+
+def test_per_customer_reasons_cover_every_row(fitted_pipe):
+    """The per-row path must stay uncapped - a sampled explanation would leave
+    scored customers with no reasons attached."""
+    import explain as explain_mod
+
+    pipe, X = fitted_pipe
+    reasons, method = explain_mod.explain(pipe, X, k=3)
+
+    assert len(reasons) == len(X)
+    assert all(isinstance(r, str) and r for r in reasons)
+    assert method in {"shap", "importance_proxy"}
+
+
+def test_unseen_category_does_not_break_encoding(fitted_pipe):
+    """The reason handle_unknown='ignore' is in the pipeline."""
+    pipe, X = fitted_pipe
     novel = X.head(5).copy()
     novel["Contract"] = "Five year"  # a value the model has never seen
     proba = pipe.predict_proba(novel)[:, 1]

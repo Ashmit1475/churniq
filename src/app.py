@@ -22,7 +22,7 @@ import plotly.express as px
 import streamlit as st
 
 from business import campaign_sweep, simulate_campaign
-from config import load_config
+from config import Config, load_config
 from ingest import clean
 from features import add_engineered_features
 from predict import score
@@ -31,12 +31,12 @@ st.set_page_config(page_title="ChurnIQ", page_icon="●", layout="wide")
 
 
 @st.cache_resource
-def get_config():
+def get_config() -> Config:
     return load_config()
 
 
 @st.cache_resource
-def get_artifact(_cfg):
+def get_artifact(_cfg: Config) -> dict | None:
     """cache_resource: the model is loaded once per session, not per interaction."""
     path = _cfg.path("model_artifact")
     if not path.exists():
@@ -44,24 +44,52 @@ def get_artifact(_cfg):
     return joblib.load(path)
 
 
+def rank_by_risk(df: pd.DataFrame) -> pd.DataFrame:
+    """Riskiest customer first.
+
+    predict.py writes the CSV in this order, but a SELECT has no ordering
+    guarantee, and the tables below take .head(N) and caption it "the N
+    riskiest". Sort explicitly rather than inherit an order by luck.
+    """
+    if "churn_probability" not in df.columns:
+        return df
+    return df.sort_values(
+        "churn_probability", ascending=False, kind="stable"
+    ).reset_index(drop=True)
+
+
 @st.cache_data
-def load_scored(_cfg):
-    """cache_data: the dataframe is cached and invalidated by Streamlit's hashing."""
+def load_scored(_cfg: Config) -> tuple[pd.DataFrame | None, str | None]:
+    """Scored customers, as (dataframe, error). cache_data caches the result.
+
+    The committed CSV comes first: it is what the deployed app runs on, because
+    Streamlit Cloud has no database. The database is the local fallback, and its
+    failure is returned rather than swallowed - otherwise a broken connection is
+    indistinguishable from "you have not run the pipeline yet".
+    """
     csv = _cfg.path("scored_csv")
     if csv.exists():
-        return pd.read_csv(csv)
+        return rank_by_risk(pd.read_csv(csv)), None
     try:
         from db import get_engine, read_sql
 
-        return read_sql(f"SELECT * FROM {_cfg['database']['predictions_table']}", get_engine(_cfg))
-    except Exception:
-        return None
+        table = _cfg["database"]["predictions_table"]
+        return rank_by_risk(read_sql(f"SELECT * FROM {table}", get_engine(_cfg))), None
+    except Exception as exc:
+        return None, f"{type(exc).__name__}: {exc}"
 
 
 cfg = get_config()
 artifact = get_artifact(cfg)
-scored = load_scored(cfg)
+scored, scored_error = load_scored(cfg)
 sym = cfg["business"]["currency_symbol"]
+
+
+def warn_no_scored() -> None:
+    """The 'no data' message, plus the reason when there is one to give."""
+    st.warning("No scored customers yet - run `python src/predict.py`.")
+    if scored_error:
+        st.caption(f"The database fallback also failed - {scored_error}")
 
 
 def money(amount: float) -> str:
@@ -126,7 +154,7 @@ tab_overview, tab_risk, tab_campaign, tab_scorer = st.tabs(
 # ---------------------------------------------------------------- Overview
 with tab_overview:
     if scored is None:
-        st.warning("No scored customers yet - run `python src/predict.py`.")
+        warn_no_scored()
     else:
         total_rar = scored["revenue_at_risk"].sum()
         n_high = int((scored["risk_flag"] == "High").sum())
@@ -206,7 +234,7 @@ with tab_overview:
 # ------------------------------------------------------------ Customer risk
 with tab_risk:
     if scored is None:
-        st.warning("Run `python src/predict.py` first.")
+        warn_no_scored()
     else:
         f1, f2, f3 = st.columns(3)
         bands = f1.multiselect(
@@ -264,7 +292,7 @@ with tab_risk:
 # --------------------------------------------------------- Campaign planner
 with tab_campaign:
     if scored is None:
-        st.warning("Run `python src/predict.py` first.")
+        warn_no_scored()
     else:
         st.markdown(
             "Estimate the return on a retention campaign targeting the riskiest "

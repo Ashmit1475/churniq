@@ -36,6 +36,28 @@ BILLING_COLS = [
 ]
 
 
+def _to_int(df: pd.DataFrame, col: str) -> pd.Series:
+    """Integer conversion that says which column failed, and how badly.
+
+    A plain `.astype("int64")` on a column holding one unparseable value raises
+    pandas' "Cannot convert non-finite values (NA or inf) to integer" - which
+    names neither the column nor the rows. On a real extract with a handful of
+    blank tenures that is a dead end. Refusing loudly is the right call here:
+    silently filling a tenure or a senior-citizen flag would change what the
+    model is trained on without anyone noticing.
+    """
+    values = pd.to_numeric(df[col], errors="coerce")
+    n_bad = int(values.isna().sum())
+    if n_bad:
+        examples = df.loc[values.isna(), col].astype(str).unique()[:3].tolist()
+        raise ValueError(
+            f"{col}: {n_bad} of {len(df):,} rows are not numeric (e.g. {examples}). "
+            f"Fix them in the source CSV - filling a value here would quietly "
+            f"change the model's inputs."
+        )
+    return values.astype("int64")
+
+
 def clean(df: pd.DataFrame) -> pd.DataFrame:
     """Fix the known data-quality issues in the Telco dataset."""
     df = df.copy()
@@ -52,8 +74,8 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
         print(f"  cleaned {n_blank} blank TotalCharges values (tenure = 0) -> 0.0")
 
     df["MonthlyCharges"] = pd.to_numeric(df["MonthlyCharges"], errors="coerce")
-    df["tenure"] = pd.to_numeric(df["tenure"], errors="coerce").astype("int64")
-    df["SeniorCitizen"] = pd.to_numeric(df["SeniorCitizen"], errors="coerce").astype("int64")
+    df["tenure"] = _to_int(df, "tenure")
+    df["SeniorCitizen"] = _to_int(df, "SeniorCitizen")
 
     before = len(df)
     df = df.drop_duplicates(subset=["customerID"])

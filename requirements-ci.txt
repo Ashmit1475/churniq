@@ -1,0 +1,20 @@
+# Dependencies for the GitHub Actions test job (.github/workflows/ci.yml).
+#
+# Why this is not requirements-dev.txt: CI runs Python 3.11, and shap==0.52.0
+# publishes no distribution for 3.11 (0.51.0 is the last one that does). shap is
+# an optional import in src/explain.py, which falls back to its importance proxy
+# when the package is missing - so the suite runs without it, and CI covers the
+# fallback path that a shap-installed environment never reaches.
+#
+# Deliberately not relaxing the shap pin in requirements.txt: that file is what
+# Streamlit Community Cloud installs for the live app, and the pin is there so
+# the committed model artifact unpickles against the version it was trained on.
+#
+# These are the same pins as requirements.txt / requirements-dev.txt - the
+# subset the test suite actually imports. Keep them in step if those files move.
+pandas==2.2.3
+numpy==2.1.3
+scikit-learn==1.5.2
+pyyaml==6.0.2
+joblib==1.4.2
+pytest==8.3.4

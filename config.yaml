@@ -33,7 +33,11 @@ data:
 
 features:
   tenure_buckets:
-    bins: [-1, 12, 24, 48, 1000]
+    # Top edge is unbounded. A hard 1000-month cap put anyone past it outside
+    # every bin, so pd.cut returned NaN and the bucket became the string "nan" -
+    # a category the encoder has never seen, silently zeroing the tenure signal
+    # for exactly the longest-tenured customers.
+    bins: [-1, 12, 24, 48, .inf]
     labels: ["0-12m", "13-24m", "25-48m", "48m+"]
   service_columns:
     - PhoneService
@@ -83,5 +87,9 @@ business:
 
 explainability:
   enabled: true
-  max_samples: 2000                # SHAP sample cap - keeps runtime sane
+  # Caps the rows the driver chart's explainer runs over (reports/figures/
+  # churn_drivers.png). A mean absolute contribution converges well before a
+  # whole dataset is consumed. Per-customer reasons are deliberately uncapped -
+  # every scored customer needs their own.
+  max_samples: 2000
   top_reasons: 3                   # reasons surfaced per customer

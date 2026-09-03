@@ -21,14 +21,14 @@ import numpy as np
 import pandas as pd
 
 from business import customer_value, revenue_at_risk, simulate_campaign
-from config import load_config
+from config import Config, load_config
 from db import create_indexes, get_engine, write_table
 from explain import explain
 from features import add_engineered_features, build_feature_table
 from ingest import clean
 
 
-def score(df_features: pd.DataFrame, artifact: dict, cfg) -> pd.DataFrame:
+def score(df_features: pd.DataFrame, artifact: dict, cfg: Config) -> pd.DataFrame:
     """Apply the saved pipeline and assemble the output table."""
     pipe = artifact["pipeline"]
     threshold = artifact["threshold"]
@@ -73,11 +73,7 @@ def score(df_features: pd.DataFrame, artifact: dict, cfg) -> pd.DataFrame:
         )
 
     if cfg["explainability"]["enabled"]:
-        reasons, method = explain(
-            pipe, X,
-            max_samples=cfg["explainability"]["max_samples"],
-            k=cfg["explainability"]["top_reasons"],
-        )
+        reasons, method = explain(pipe, X, k=cfg["explainability"]["top_reasons"])
         out["top_risk_reasons"] = reasons
         out["explanation_method"] = method
 
